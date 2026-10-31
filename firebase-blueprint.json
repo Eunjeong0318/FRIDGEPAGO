@@ -1,0 +1,965 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Per-user kitchen preferences, monthly food budget, and allergy exclusions.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "nickname": {
+          "type": "string",
+          "description": "Display nickname shown in header and dashboard.",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "householdLabel": {
+          "type": "string",
+          "description": "Household label description.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "monthlyBudget": {
+          "type": "number",
+          "description": "Monthly target food budget in KRW."
+        },
+        "allergiesAndDislikes": {
+          "type": "array",
+          "description": "Bounded list of up to 30 allergy or disliked ingredient strings."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": [
+        "userId",
+        "nickname",
+        "householdLabel",
+        "monthlyBudget",
+        "allergiesAndDislikes",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "IngredientItem": {
+      "title": "IngredientItem",
+      "description": "Single ingredient stored in the user's refrigerator, freezer, or pantry.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["채소", "과일", "육류", "해산물", "유제품", "알류", "곡류", "가공식품", "기타"]
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "storage": {
+          "type": "string",
+          "maxLength": 10,
+          "enum": ["냉장", "냉동", "실온"]
+        },
+        "purchaseDate": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 20,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "expiryDate": {
+          "type": "string",
+          "maxLength": 20,
+          "pattern": "^(|\\d{4}-\\d{2}-\\d{2})$"
+        },
+        "hasPurchasePrice": {
+          "type": "boolean"
+        },
+        "purchasePrice": {
+          "type": "number"
+        },
+        "memo": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "clientCreatedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "category",
+        "quantity",
+        "unit",
+        "storage",
+        "purchaseDate",
+        "expiryDate",
+        "hasPurchasePrice",
+        "purchasePrice",
+        "memo",
+        "isSample",
+        "clientCreatedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavedRecipe": {
+      "title": "SavedRecipe",
+      "description": "AI-recommended recipe persisted for the user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "cuisine": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "cookingTimeMinutes": {
+          "type": "number"
+        },
+        "difficulty": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "requiredIngredients": {
+          "type": "array"
+        },
+        "ownedIngredients": {
+          "type": "array"
+        },
+        "missingIngredients": {
+          "type": "array"
+        },
+        "basicSeasonings": {
+          "type": "array"
+        },
+        "steps": {
+          "type": "array"
+        },
+        "recommendationReason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "safetyAndAllergyNote": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "isStarterPreview": {
+          "type": "boolean"
+        },
+        "clientCreatedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "description",
+        "cuisine",
+        "cookingTimeMinutes",
+        "difficulty",
+        "requiredIngredients",
+        "ownedIngredients",
+        "missingIngredients",
+        "basicSeasonings",
+        "steps",
+        "recommendationReason",
+        "safetyAndAllergyNote",
+        "isStarterPreview",
+        "clientCreatedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ShoppingListItem": {
+      "title": "ShoppingListItem",
+      "description": "Grocery shopping list item for a user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["채소", "과일", "육류", "해산물", "유제품", "알류", "곡류", "가공식품", "기타"]
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "estimatedPrice": {
+          "type": "number"
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "preferredStore": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["", "coupang", "kurly", "oasis", "ssg", "naver"]
+        },
+        "sourceRecipeTitle": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "clientCreatedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "category",
+        "quantity",
+        "unit",
+        "estimatedPrice",
+        "checked",
+        "preferredStore",
+        "sourceRecipeTitle",
+        "isSample",
+        "clientCreatedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ExpenseEntry": {
+      "title": "ExpenseEntry",
+      "description": "Food purchase expense entry for monthly savings report.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 20,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "month": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}$"
+        },
+        "itemName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["채소", "과일", "육류", "해산물", "유제품", "알류", "곡류", "가공식품", "기타"]
+        },
+        "amount": {
+          "type": "number"
+        },
+        "memo": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "date",
+        "month",
+        "itemName",
+        "category",
+        "amount",
+        "memo",
+        "isSample",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WasteEntry": {
+      "title": "WasteEntry",
+      "description": "Discarded food waste entry for monthly report.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 20,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "month": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}$"
+        },
+        "itemName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["채소", "과일", "육류", "해산물", "유제품", "알류", "곡류", "가공식품", "기타"]
+        },
+        "wastedAmount": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "date",
+        "month",
+        "itemName",
+        "category",
+        "wastedAmount",
+        "reason",
+        "isSample",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RecipeUsageEntry": {
+      "title": "RecipeUsageEntry",
+      "description": "Completed recipe cooking savings entry for monthly report.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 20,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "month": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}$"
+        },
+        "recipeTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "usedIngredients": {
+          "type": "array"
+        },
+        "savedAmount": {
+          "type": "number"
+        },
+        "memo": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "date",
+        "month",
+        "recipeTitle",
+        "usedIngredients",
+        "savedAmount",
+        "memo",
+        "isSample",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MonthlySummaryDoc": {
+      "title": "MonthlySummaryDoc",
+      "description": "Monthly AI financial summary document keyed by YYYY-MM.",
+      "type": "object",
+      "properties": {
+        "month": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "headline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "summaryParagraph": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500
+        },
+        "actionTips": {
+          "type": "array"
+        },
+        "generatedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "month",
+        "userId",
+        "headline",
+        "summaryParagraph",
+        "actionTips",
+        "generatedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StoreRecommendationDoc": {
+      "title": "StoreRecommendationDoc",
+      "description": "Saved lowest-price online grocery store comparison result.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "primaryRecommendedMall": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "overallStrategy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "bundleShippingTip": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "itemGuides": {
+          "type": "array"
+        },
+        "sources": {
+          "type": "array"
+        },
+        "priceDisclaimer": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "generatedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "primaryRecommendedMall",
+        "overallStrategy",
+        "bundleShippingTip",
+        "itemGuides",
+        "sources",
+        "priceDisclaimer",
+        "generatedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LifecycleEventDoc": {
+      "title": "LifecycleEventDoc",
+      "description": "Individual ingredient registration, consumption, or waste tracking event used for 30-day waste cause diagnosis.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 20,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "month": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}$"
+        },
+        "action": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["registered", "consumed", "wasted"]
+        },
+        "itemName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["채소", "과일", "육류", "해산물", "유제품", "알류", "곡류", "가공식품", "기타"]
+        },
+        "storage": {
+          "type": "string",
+          "maxLength": 10,
+          "enum": ["냉장", "냉동", "실온"]
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "amountKRW": {
+          "type": "number"
+        },
+        "daysHeld": {
+          "type": "number"
+        },
+        "daysFromExpiry": {
+          "type": "number"
+        },
+        "causeTag": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "date",
+        "month",
+        "action",
+        "itemName",
+        "category",
+        "storage",
+        "quantity",
+        "unit",
+        "amountKRW",
+        "daysHeld",
+        "daysFromExpiry",
+        "causeTag",
+        "note",
+        "isSample",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WasteCauseAnalysisDoc": {
+      "title": "WasteCauseAnalysisDoc",
+      "description": "Monthly AI root-cause diagnosis and actionable food waste prevention prescription.",
+      "type": "object",
+      "properties": {
+        "month": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "diagnosisHeadline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "primaryCauseSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1200
+        },
+        "detectedPatterns": {
+          "type": "array"
+        },
+        "tailoredSolutions": {
+          "type": "array"
+        },
+        "recommendedBuyingRule": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "analyzedEventCount": {
+          "type": "number"
+        },
+        "generatedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "month",
+        "userId",
+        "diagnosisHeadline",
+        "primaryCauseSummary",
+        "detectedPatterns",
+        "tailoredSolutions",
+        "recommendedBuyingRule",
+        "analyzedEventCount",
+        "generatedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MissionGameDoc": {
+      "title": "MissionGameDoc",
+      "description": "User's fridge mission mini-game state, score, rank progression, and active mission round.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "totalPoints": {
+          "type": "number"
+        },
+        "completedRounds": {
+          "type": "number"
+        },
+        "completedMissionsCount": {
+          "type": "number"
+        },
+        "roundNumber": {
+          "type": "number"
+        },
+        "roundBonusClaimed": {
+          "type": "boolean"
+        },
+        "activeMissions": {
+          "type": "array"
+        },
+        "recentLogs": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "totalPoints",
+        "completedRounds",
+        "completedMissionsCount",
+        "roundNumber",
+        "roundBonusClaimed",
+        "activeMissions",
+        "recentLogs",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Root user profile and preferences document owned by {userId}."
+    },
+    "/users/{userId}/ingredients/{ingredientId}": {
+      "schema": "IngredientItem",
+      "description": "User's refrigerator, freezer, and pantry ingredients."
+    },
+    "/users/{userId}/recipes/{recipeId}": {
+      "schema": "SavedRecipe",
+      "description": "User's AI-recommended recipes."
+    },
+    "/users/{userId}/shoppingItems/{itemId}": {
+      "schema": "ShoppingListItem",
+      "description": "User's shopping list items."
+    },
+    "/users/{userId}/expenses/{expenseId}": {
+      "schema": "ExpenseEntry",
+      "description": "User's food expense records."
+    },
+    "/users/{userId}/wastes/{wasteId}": {
+      "schema": "WasteEntry",
+      "description": "User's food waste records."
+    },
+    "/users/{userId}/recipeUsages/{usageId}": {
+      "schema": "RecipeUsageEntry",
+      "description": "User's completed cooking savings records."
+    },
+    "/users/{userId}/monthlySummaries/{monthId}": {
+      "schema": "MonthlySummaryDoc",
+      "description": "User's monthly AI savings report summaries."
+    },
+    "/users/{userId}/storeRecommendations/{recId}": {
+      "schema": "StoreRecommendationDoc",
+      "description": "User's online grocery store recommendation snapshots."
+    },
+    "/users/{userId}/lifecycleEvents/{eventId}": {
+      "schema": "LifecycleEventDoc",
+      "description": "User's ingredient registration, consumption, and waste lifecycle tracking events."
+    },
+    "/users/{userId}/wasteAnalyses/{monthId}": {
+      "schema": "WasteCauseAnalysisDoc",
+      "description": "User's monthly food waste root-cause AI analyses."
+    },
+    "/users/{userId}/gameProgress/{docId}": {
+      "schema": "MissionGameDoc",
+      "description": "User's fridge mission mini-game progression, active round, and score."
+    }
+  }
+}

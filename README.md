@@ -1,11 +1,59 @@
-<div align="center">
+# 냉파고 (FRIDGEPAGO)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+> **냉장고 속 재료가 최고의 셰프가 되는 순간.**
+> 자취생과 1인 가구를 위한 스마트 식재료 관리 · AI 맞춤 레시피 추천 · 유통기한 및 식비 절약 관리 웹서비스
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 주요 기능
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+1. **대시보드**: 등록 식재료 현황, 소비기한 확인 필요 품목, 이번 달 실제 절약 금액, 소비 우선순위 식재료 및 오늘의 추천 레시피 3선 한눈에 보기
+2. **내 냉장고**: 식재료 직접 등록/수정/삭제, 카테고리·보관장소 필터, 중복 식재료 수량 합산/별도 등록 선택, **Gemini 비전 기반 사진 식재료 자동 인식 및 검수 등록**
+3. **AI 레시피 추천**: 냉장고 보유 재료 및 임박 재료 우선 활용 3종 맞춤 레시피 생성, 보유 재료·부족 재료·기본 양념 엄격 분리, 알레르기·기피 재료 제외, 부족 재료 원클릭 장보기 전송
+4. **유통기한 관리**: 남은 일수(D-Day) 자동 계산, `임박` · `여유` · `날짜 확인 필요` 상태 분류, 부분/전량 소비 완료 처리 및 폐기 연동, 식품 안전 주의 안내
+5. **장보기 리스트**: 미구매/구매 완료 분리, 예상 금액 합산, 레시피 부족 재료 불러오기, 구매 완료 품목 냉장고 재고 일괄 입고 및 식비 지출 연동
+6. **절약 리포트**: 월별 식재료 구매 비용·폐기 손실·레시피 활용 절약 내역 기록, 지난달 대비 비교 차트, 카테고리별 지출 비중 시각화 및 **Gemini AI 월간 식비 분석 요약**
 
-</div>
+---
+
+## 기술 스택
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Lucide Icons
+- **Backend**: Node.js, Express (`server.ts` 서버 측 API 프록시)
+- **AI SDK**: `@google/genai` (`gemini-3.8-flash`, Structured JSON Schema)
+- **Persistence**: 브라우저 `LocalStorage` 기반 영속 저장 (손상 복구 및 샘플 데이터 분리 지원)
+
+---
+
+## 환경변수 설정 및 API 키 보안 안내
+
+본 프로젝트는 **API 키가 브라우저 번들이나 클라이언트 코드에 절대 노출되지 않도록** 모든 Gemini API 요청을 서버(`server.ts`)에서 처리합니다.
+
+### 1. Google AI Studio 환경에서 실행 시
+- Google AI Studio의 **Settings > Secrets** 패널에서 `GEMINI_API_KEY`가 자동으로 서버 런타임 환경변수(`process.env.GEMINI_API_KEY`)에 주입됩니다.
+- 소스 코드나 `.env.example`에 실제 API 키를 입력하지 마세요.
+
+### 2. 로컬 개발 환경에서 실행 시
+프로젝트 루트에 `.env` 파일을 생성하고 아래와 같이 환경변수를 설정합니다 (`.env` 파일은 `.gitignore`에 의해 Git 추적에서 제외됩니다).
+
+```bash
+GEMINI_API_KEY="발급받은_본인의_GEMINI_API_KEY"
+APP_URL="http://localhost:3000"
+```
+
+### 3. 패키지 설치 및 실행 명령어
+
+```bash
+# 의존성 설치
+npm install
+
+# 개발 서버 실행 (포트 3000, Express + Vite 미들웨어)
+npm run dev
+
+# 프로덕션 빌드 및 실행
+npm run build
+NODE_ENV=production npm start
+```
+
+### 4. API 키 미연결 시 동작
+- 서버 환경변수에 `GEMINI_API_KEY`가 설정되지 않은 경우에도 **식재료 직접 등록/수정/삭제, 유통기한 관리, 장보기 리스트, 절약 리포트 계산 등 모든 핵심 기능은 정상 작동**하며, AI 기능 영역에는 연결 안내 배너가 표시됩니다.

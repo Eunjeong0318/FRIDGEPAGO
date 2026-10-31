@@ -1,0 +1,1165 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 4.1: Global Safety Net (Default-Deny Catch-All FIRST)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Phase 3: Hardened Global Helpers (Exclusive Verified Owner Lock)
+    // =========================================================================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.email is string &&
+        request.auth.token.email.size() >= 3 &&
+        request.auth.token.email.size() <= 120 &&
+        request.auth.token.email == 'jseongho92@gmail.com';
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    // Pillar 1: Master Gate — Relational Sync against parent /users/{userId}
+    function hasValidParentProfile(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+        get(/databases/$(database)/documents/users/$(userId)).data.userId == request.auth.uid;
+    }
+
+    function isValidCategory(cat) {
+      return cat is string &&
+        cat.size() >= 1 &&
+        cat.size() <= 20 &&
+        cat in ['채소', '과일', '육류', '해산물', '유제품', '알류', '곡류', '가공식품', '기타'];
+    }
+
+    function isValidStorage(loc) {
+      return loc is string &&
+        loc.size() >= 1 &&
+        loc.size() <= 10 &&
+        loc in ['냉장', '냉동', '실온'];
+    }
+
+    function isValidDateStr(d) {
+      return d is string && d.size() == 10 && d.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isValidOptionalDateStr(d) {
+      return d is string && d.size() <= 20 && (d == '' || d.matches('^\\d{4}-\\d{2}-\\d{2}$'));
+    }
+
+    function isValidMonthStr(m) {
+      return m is string && m.size() == 7 && m.matches('^\\d{4}-\\d{2}$');
+    }
+
+    // =========================================================================
+    // Pillar 2: Validation Blueprints (Anti-Update-Gap)
+    // =========================================================================
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+          'userId',
+          'nickname',
+          'householdLabel',
+          'monthlyBudget',
+          'allergiesAndDislikes',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'userId',
+          'nickname',
+          'householdLabel',
+          'monthlyBudget',
+          'allergiesAndDislikes',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.userId) &&
+        data.userId == request.auth.uid &&
+        data.userId == userId &&
+        data.nickname is string && data.nickname.size() >= 1 && data.nickname.size() <= 40 &&
+        data.householdLabel is string && data.householdLabel.size() >= 1 && data.householdLabel.size() <= 80 &&
+        data.monthlyBudget is number && data.monthlyBudget >= 0 && data.monthlyBudget <= 100000000 &&
+        data.allergiesAndDislikes is list && data.allergiesAndDislikes.size() <= 30 &&
+        (data.allergiesAndDislikes.size() == 0 || (data.allergiesAndDislikes[0] is string && data.allergiesAndDislikes[0].size() >= 1 && data.allergiesAndDislikes[0].size() <= 50)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidIngredientItem(data, userId, ingredientId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'name',
+          'category',
+          'quantity',
+          'unit',
+          'storage',
+          'purchaseDate',
+          'expiryDate',
+          'hasPurchasePrice',
+          'purchasePrice',
+          'memo',
+          'isSample',
+          'clientCreatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'name',
+          'category',
+          'quantity',
+          'unit',
+          'storage',
+          'purchaseDate',
+          'expiryDate',
+          'hasPurchasePrice',
+          'purchasePrice',
+          'memo',
+          'isSample',
+          'clientCreatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id == ingredientId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        isValidCategory(data.category) &&
+        data.quantity is number && data.quantity > 0 && data.quantity <= 100000 &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 20 &&
+        isValidStorage(data.storage) &&
+        isValidDateStr(data.purchaseDate) &&
+        isValidOptionalDateStr(data.expiryDate) &&
+        data.hasPurchasePrice is bool &&
+        data.purchasePrice is number && data.purchasePrice >= 0 && data.purchasePrice <= 100000000 &&
+        data.memo is string && data.memo.size() <= 300 &&
+        data.isSample is bool &&
+        data.clientCreatedAt is string && data.clientCreatedAt.size() >= 1 && data.clientCreatedAt.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSavedRecipe(data, userId, recipeId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'title',
+          'description',
+          'cuisine',
+          'cookingTimeMinutes',
+          'difficulty',
+          'requiredIngredients',
+          'ownedIngredients',
+          'missingIngredients',
+          'basicSeasonings',
+          'steps',
+          'recommendationReason',
+          'safetyAndAllergyNote',
+          'isStarterPreview',
+          'clientCreatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'title',
+          'description',
+          'cuisine',
+          'cookingTimeMinutes',
+          'difficulty',
+          'requiredIngredients',
+          'ownedIngredients',
+          'missingIngredients',
+          'basicSeasonings',
+          'steps',
+          'recommendationReason',
+          'safetyAndAllergyNote',
+          'isStarterPreview',
+          'clientCreatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id == recipeId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 600 &&
+        data.cuisine is string && data.cuisine.size() >= 1 && data.cuisine.size() <= 30 &&
+        data.cookingTimeMinutes is number && data.cookingTimeMinutes >= 1 && data.cookingTimeMinutes <= 600 &&
+        data.difficulty is string && data.difficulty.size() >= 1 && data.difficulty.size() <= 20 &&
+        data.requiredIngredients is list && data.requiredIngredients.size() <= 40 &&
+        (data.requiredIngredients.size() == 0 || (data.requiredIngredients[0] is string && data.requiredIngredients[0].size() <= 100)) &&
+        data.ownedIngredients is list && data.ownedIngredients.size() <= 40 &&
+        (data.ownedIngredients.size() == 0 || (
+          data.ownedIngredients[0] is map &&
+          data.ownedIngredients[0].keys().hasAll(['name', 'amount']) &&
+          data.ownedIngredients[0].keys().hasOnly(['name', 'amount']) &&
+          data.ownedIngredients[0].name is string && data.ownedIngredients[0].name.size() <= 80 &&
+          data.ownedIngredients[0].amount is string && data.ownedIngredients[0].amount.size() <= 40
+        )) &&
+        data.missingIngredients is list && data.missingIngredients.size() <= 40 &&
+        (data.missingIngredients.size() == 0 || (
+          data.missingIngredients[0] is map &&
+          data.missingIngredients[0].keys().hasAll(['name', 'amount', 'category', 'estimatedPrice']) &&
+          data.missingIngredients[0].keys().hasOnly(['name', 'amount', 'category', 'estimatedPrice']) &&
+          data.missingIngredients[0].name is string && data.missingIngredients[0].name.size() <= 80 &&
+          data.missingIngredients[0].amount is string && data.missingIngredients[0].amount.size() <= 40 &&
+          isValidCategory(data.missingIngredients[0].category) &&
+          data.missingIngredients[0].estimatedPrice is number && data.missingIngredients[0].estimatedPrice >= 0 && data.missingIngredients[0].estimatedPrice <= 10000000
+        )) &&
+        data.basicSeasonings is list && data.basicSeasonings.size() <= 30 &&
+        (data.basicSeasonings.size() == 0 || (data.basicSeasonings[0] is string && data.basicSeasonings[0].size() <= 80)) &&
+        data.steps is list && data.steps.size() <= 25 &&
+        (data.steps.size() == 0 || (data.steps[0] is string && data.steps[0].size() <= 500)) &&
+        data.recommendationReason is string && data.recommendationReason.size() <= 500 &&
+        data.safetyAndAllergyNote is string && data.safetyAndAllergyNote.size() <= 500 &&
+        data.isStarterPreview is bool &&
+        data.clientCreatedAt is string && data.clientCreatedAt.size() >= 1 && data.clientCreatedAt.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidShoppingListItem(data, userId, itemId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'name',
+          'category',
+          'quantity',
+          'unit',
+          'estimatedPrice',
+          'checked',
+          'preferredStore',
+          'sourceRecipeTitle',
+          'isSample',
+          'clientCreatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'name',
+          'category',
+          'quantity',
+          'unit',
+          'estimatedPrice',
+          'checked',
+          'preferredStore',
+          'sourceRecipeTitle',
+          'isSample',
+          'clientCreatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id == itemId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        isValidCategory(data.category) &&
+        data.quantity is number && data.quantity > 0 && data.quantity <= 100000 &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 20 &&
+        data.estimatedPrice is number && data.estimatedPrice >= 0 && data.estimatedPrice <= 100000000 &&
+        data.checked is bool &&
+        data.preferredStore is string && data.preferredStore.size() <= 20 &&
+        data.preferredStore in ['', 'coupang', 'kurly', 'oasis', 'ssg', 'naver'] &&
+        data.sourceRecipeTitle is string && data.sourceRecipeTitle.size() <= 120 &&
+        data.isSample is bool &&
+        data.clientCreatedAt is string && data.clientCreatedAt.size() >= 1 && data.clientCreatedAt.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidExpenseEntry(data, userId, expenseId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'date',
+          'month',
+          'itemName',
+          'category',
+          'amount',
+          'memo',
+          'isSample',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'date',
+          'month',
+          'itemName',
+          'category',
+          'amount',
+          'memo',
+          'isSample',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id == expenseId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        isValidDateStr(data.date) &&
+        isValidMonthStr(data.month) &&
+        data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 120 &&
+        isValidCategory(data.category) &&
+        data.amount is number && data.amount >= 0 && data.amount <= 100000000 &&
+        data.memo is string && data.memo.size() <= 300 &&
+        data.isSample is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWasteEntry(data, userId, wasteId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'date',
+          'month',
+          'itemName',
+          'category',
+          'wastedAmount',
+          'reason',
+          'isSample',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'date',
+          'month',
+          'itemName',
+          'category',
+          'wastedAmount',
+          'reason',
+          'isSample',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id == wasteId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        isValidDateStr(data.date) &&
+        isValidMonthStr(data.month) &&
+        data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 120 &&
+        isValidCategory(data.category) &&
+        data.wastedAmount is number && data.wastedAmount >= 0 && data.wastedAmount <= 100000000 &&
+        data.reason is string && data.reason.size() >= 1 && data.reason.size() <= 300 &&
+        data.isSample is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidRecipeUsageEntry(data, userId, usageId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'date',
+          'month',
+          'recipeTitle',
+          'usedIngredients',
+          'savedAmount',
+          'memo',
+          'isSample',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'date',
+          'month',
+          'recipeTitle',
+          'usedIngredients',
+          'savedAmount',
+          'memo',
+          'isSample',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id == usageId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        isValidDateStr(data.date) &&
+        isValidMonthStr(data.month) &&
+        data.recipeTitle is string && data.recipeTitle.size() >= 1 && data.recipeTitle.size() <= 120 &&
+        data.usedIngredients is list && data.usedIngredients.size() <= 30 &&
+        (data.usedIngredients.size() == 0 || (data.usedIngredients[0] is string && data.usedIngredients[0].size() <= 80)) &&
+        data.savedAmount is number && data.savedAmount >= 0 && data.savedAmount <= 100000000 &&
+        data.memo is string && data.memo.size() <= 300 &&
+        data.isSample is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidMonthlySummaryDoc(data, userId, monthId) {
+      return data.keys().hasAll([
+          'month',
+          'userId',
+          'headline',
+          'summaryParagraph',
+          'actionTips',
+          'generatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'month',
+          'userId',
+          'headline',
+          'summaryParagraph',
+          'actionTips',
+          'generatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidMonthStr(data.month) && data.month == monthId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        data.headline is string && data.headline.size() >= 1 && data.headline.size() <= 200 &&
+        data.summaryParagraph is string && data.summaryParagraph.size() >= 1 && data.summaryParagraph.size() <= 1500 &&
+        data.actionTips is list && data.actionTips.size() <= 10 &&
+        (data.actionTips.size() == 0 || (data.actionTips[0] is string && data.actionTips[0].size() <= 300)) &&
+        data.generatedAt is string && data.generatedAt.size() >= 1 && data.generatedAt.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidStoreRecommendationDoc(data, userId, recId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'primaryRecommendedMall',
+          'overallStrategy',
+          'bundleShippingTip',
+          'itemGuides',
+          'sources',
+          'priceDisclaimer',
+          'generatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'primaryRecommendedMall',
+          'overallStrategy',
+          'bundleShippingTip',
+          'itemGuides',
+          'sources',
+          'priceDisclaimer',
+          'generatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id.size() <= 64 && data.id == recId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        data.primaryRecommendedMall is string && data.primaryRecommendedMall.size() >= 1 && data.primaryRecommendedMall.size() <= 80 &&
+        data.overallStrategy is string && data.overallStrategy.size() >= 1 && data.overallStrategy.size() <= 1000 &&
+        data.bundleShippingTip is string && data.bundleShippingTip.size() <= 600 &&
+        data.itemGuides is list && data.itemGuides.size() <= 40 &&
+        (data.itemGuides.size() == 0 || (
+          data.itemGuides[0] is map &&
+          data.itemGuides[0].keys().hasAll(['itemName', 'bestStore', 'reason', 'searchKeyword', 'estimatedPriceRange']) &&
+          data.itemGuides[0].keys().hasOnly(['itemName', 'bestStore', 'reason', 'searchKeyword', 'estimatedPriceRange']) &&
+          data.itemGuides[0].itemName is string && data.itemGuides[0].itemName.size() <= 80 &&
+          data.itemGuides[0].bestStore is string && data.itemGuides[0].bestStore.size() <= 60 &&
+          data.itemGuides[0].reason is string && data.itemGuides[0].reason.size() <= 300 &&
+          data.itemGuides[0].searchKeyword is string && data.itemGuides[0].searchKeyword.size() <= 100 &&
+          data.itemGuides[0].estimatedPriceRange is string && data.itemGuides[0].estimatedPriceRange.size() <= 80
+        )) &&
+        data.sources is list && data.sources.size() <= 20 &&
+        (data.sources.size() == 0 || (
+          data.sources[0] is map &&
+          data.sources[0].keys().hasAll(['title', 'uri']) &&
+          data.sources[0].keys().hasOnly(['title', 'uri']) &&
+          data.sources[0].title is string && data.sources[0].title.size() <= 200 &&
+          data.sources[0].uri is string && data.sources[0].uri.size() <= 1000
+        )) &&
+        data.priceDisclaimer is string && data.priceDisclaimer.size() <= 400 &&
+        data.generatedAt is string && data.generatedAt.size() >= 1 && data.generatedAt.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLifecycleEventDoc(data, userId, eventId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'date',
+          'month',
+          'action',
+          'itemName',
+          'category',
+          'storage',
+          'quantity',
+          'unit',
+          'amountKRW',
+          'daysHeld',
+          'daysFromExpiry',
+          'causeTag',
+          'note',
+          'isSample',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'date',
+          'month',
+          'action',
+          'itemName',
+          'category',
+          'storage',
+          'quantity',
+          'unit',
+          'amountKRW',
+          'daysHeld',
+          'daysFromExpiry',
+          'causeTag',
+          'note',
+          'isSample',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id == eventId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        isValidDateStr(data.date) &&
+        isValidMonthStr(data.month) &&
+        data.action is string && data.action.size() <= 20 &&
+        data.action in ['registered', 'consumed', 'wasted'] &&
+        data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 80 &&
+        isValidCategory(data.category) &&
+        isValidStorage(data.storage) &&
+        data.quantity is number && data.quantity > 0 && data.quantity <= 100000 &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 20 &&
+        data.amountKRW is number && data.amountKRW >= 0 && data.amountKRW <= 100000000 &&
+        data.daysHeld is number && data.daysHeld >= 0 && data.daysHeld <= 3650 &&
+        data.daysFromExpiry is number && data.daysFromExpiry >= -3650 && data.daysFromExpiry <= 3650 &&
+        data.causeTag is string && data.causeTag.size() <= 40 &&
+        data.note is string && data.note.size() <= 300 &&
+        data.isSample is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWasteCauseAnalysisDoc(data, userId, monthId) {
+      return data.keys().hasAll([
+          'month',
+          'userId',
+          'diagnosisHeadline',
+          'primaryCauseSummary',
+          'detectedPatterns',
+          'tailoredSolutions',
+          'recommendedBuyingRule',
+          'analyzedEventCount',
+          'generatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'month',
+          'userId',
+          'diagnosisHeadline',
+          'primaryCauseSummary',
+          'detectedPatterns',
+          'tailoredSolutions',
+          'recommendedBuyingRule',
+          'analyzedEventCount',
+          'generatedAt',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidMonthStr(data.month) && data.month == monthId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        data.diagnosisHeadline is string && data.diagnosisHeadline.size() >= 1 && data.diagnosisHeadline.size() <= 200 &&
+        data.primaryCauseSummary is string && data.primaryCauseSummary.size() >= 1 && data.primaryCauseSummary.size() <= 1200 &&
+        data.detectedPatterns is list && data.detectedPatterns.size() <= 10 &&
+        (data.detectedPatterns.size() == 0 || (
+          data.detectedPatterns[0] is map &&
+          data.detectedPatterns[0].keys().hasAll(['patternTitle', 'evidence', 'impactKRW']) &&
+          data.detectedPatterns[0].keys().hasOnly(['patternTitle', 'evidence', 'impactKRW']) &&
+          data.detectedPatterns[0].patternTitle is string && data.detectedPatterns[0].patternTitle.size() <= 120 &&
+          data.detectedPatterns[0].evidence is string && data.detectedPatterns[0].evidence.size() <= 400 &&
+          data.detectedPatterns[0].impactKRW is number && data.detectedPatterns[0].impactKRW >= 0 && data.detectedPatterns[0].impactKRW <= 100000000
+        )) &&
+        data.tailoredSolutions is list && data.tailoredSolutions.size() <= 10 &&
+        (data.tailoredSolutions.size() == 0 || (
+          data.tailoredSolutions[0] is map &&
+          data.tailoredSolutions[0].keys().hasAll(['title', 'actionStep', 'expectedMonthlySavingKRW']) &&
+          data.tailoredSolutions[0].keys().hasOnly(['title', 'actionStep', 'expectedMonthlySavingKRW']) &&
+          data.tailoredSolutions[0].title is string && data.tailoredSolutions[0].title.size() <= 120 &&
+          data.tailoredSolutions[0].actionStep is string && data.tailoredSolutions[0].actionStep.size() <= 400 &&
+          data.tailoredSolutions[0].expectedMonthlySavingKRW is number && data.tailoredSolutions[0].expectedMonthlySavingKRW >= 0 && data.tailoredSolutions[0].expectedMonthlySavingKRW <= 100000000
+        )) &&
+        data.recommendedBuyingRule is string && data.recommendedBuyingRule.size() >= 1 && data.recommendedBuyingRule.size() <= 300 &&
+        data.analyzedEventCount is number && data.analyzedEventCount >= 0 && data.analyzedEventCount <= 100000 &&
+        data.generatedAt is string && data.generatedAt.size() >= 1 && data.generatedAt.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidMissionGameDoc(data, userId, docId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'totalPoints',
+          'completedRounds',
+          'completedMissionsCount',
+          'roundNumber',
+          'roundBonusClaimed',
+          'activeMissions',
+          'recentLogs',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'totalPoints',
+          'completedRounds',
+          'completedMissionsCount',
+          'roundNumber',
+          'roundBonusClaimed',
+          'activeMissions',
+          'recentLogs',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) && data.id.size() <= 64 && data.id == docId &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        data.totalPoints is number && data.totalPoints >= 0 && data.totalPoints <= 10000000 &&
+        data.completedRounds is number && data.completedRounds >= 0 && data.completedRounds <= 100000 &&
+        data.completedMissionsCount is number && data.completedMissionsCount >= 0 && data.completedMissionsCount <= 1000000 &&
+        data.roundNumber is number && data.roundNumber >= 1 && data.roundNumber <= 100000 &&
+        data.roundBonusClaimed is bool &&
+        data.activeMissions is list && data.activeMissions.size() <= 10 &&
+        (data.activeMissions.size() == 0 || (
+          data.activeMissions[0] is map &&
+          data.activeMissions[0].keys().hasAll([
+            'id',
+            'kind',
+            'title',
+            'description',
+            'targetItemName',
+            'targetCategory',
+            'requiredCount',
+            'currentCount',
+            'points',
+            'completed'
+          ]) &&
+          data.activeMissions[0].keys().hasOnly([
+            'id',
+            'kind',
+            'title',
+            'description',
+            'targetItemName',
+            'targetCategory',
+            'requiredCount',
+            'currentCount',
+            'points',
+            'completed'
+          ]) &&
+          data.activeMissions[0].id is string && data.activeMissions[0].id.size() <= 64 &&
+          data.activeMissions[0].kind is string && data.activeMissions[0].kind.size() <= 30 &&
+          data.activeMissions[0].title is string && data.activeMissions[0].title.size() <= 120 &&
+          data.activeMissions[0].description is string && data.activeMissions[0].description.size() <= 300 &&
+          data.activeMissions[0].targetItemName is string && data.activeMissions[0].targetItemName.size() <= 80 &&
+          data.activeMissions[0].targetCategory is string && data.activeMissions[0].targetCategory.size() <= 20 &&
+          data.activeMissions[0].requiredCount is number && data.activeMissions[0].requiredCount >= 1 && data.activeMissions[0].requiredCount <= 100 &&
+          data.activeMissions[0].currentCount is number && data.activeMissions[0].currentCount >= 0 && data.activeMissions[0].currentCount <= 100 &&
+          data.activeMissions[0].points is number && data.activeMissions[0].points >= 5 && data.activeMissions[0].points <= 500 &&
+          data.activeMissions[0].completed is bool
+        )) &&
+        data.recentLogs is list && data.recentLogs.size() <= 20 &&
+        (data.recentLogs.size() == 0 || (
+          data.recentLogs[0] is map &&
+          data.recentLogs[0].keys().hasAll(['id', 'title', 'pointsEarned', 'completedAt']) &&
+          data.recentLogs[0].keys().hasOnly(['id', 'title', 'pointsEarned', 'completedAt']) &&
+          data.recentLogs[0].id is string && data.recentLogs[0].id.size() <= 64 &&
+          data.recentLogs[0].title is string && data.recentLogs[0].title.size() <= 140 &&
+          data.recentLogs[0].pointsEarned is number && data.recentLogs[0].pointsEarned >= 1 && data.recentLogs[0].pointsEarned <= 1000 &&
+          data.recentLogs[0].completedAt is string && data.recentLogs[0].completedAt.size() <= 40
+        )) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // =========================================================================
+    // Phase 4: Fortress Match Rules
+    // =========================================================================
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isOwner(userId) &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'nickname',
+            'householdLabel',
+            'monthlyBudget',
+            'allergiesAndDislikes',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // 1. Ingredients Subcollection
+      match /ingredients/{ingredientId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(ingredientId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(ingredientId) &&
+          isValidIngredientItem(incoming(), userId, ingredientId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(ingredientId) &&
+          isValidIngredientItem(incoming(), userId, ingredientId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'quantity',
+              'hasPurchasePrice',
+              'purchasePrice',
+              'updatedAt'
+            ]) ||
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name',
+              'category',
+              'quantity',
+              'unit',
+              'storage',
+              'purchaseDate',
+              'expiryDate',
+              'hasPurchasePrice',
+              'purchasePrice',
+              'memo',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(ingredientId) && hasValidParentProfile(userId);
+      }
+
+      // 2. Saved AI Recipes Subcollection
+      match /recipes/{recipeId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(recipeId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(recipeId) &&
+          isValidSavedRecipe(incoming(), userId, recipeId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(recipeId) &&
+          isValidSavedRecipe(incoming(), userId, recipeId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'title',
+              'description',
+              'cuisine',
+              'cookingTimeMinutes',
+              'difficulty',
+              'requiredIngredients',
+              'ownedIngredients',
+              'missingIngredients',
+              'basicSeasonings',
+              'steps',
+              'recommendationReason',
+              'safetyAndAllergyNote',
+              'isStarterPreview',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(recipeId) && hasValidParentProfile(userId);
+      }
+
+      // 3. Shopping List Items Subcollection
+      match /shoppingItems/{itemId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(itemId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(itemId) &&
+          isValidShoppingListItem(incoming(), userId, itemId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(itemId) &&
+          isValidShoppingListItem(incoming(), userId, itemId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['checked', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name',
+              'category',
+              'quantity',
+              'unit',
+              'estimatedPrice',
+              'checked',
+              'preferredStore',
+              'sourceRecipeTitle',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(itemId) && hasValidParentProfile(userId);
+      }
+
+      // 4. Expenses Subcollection
+      match /expenses/{expenseId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(expenseId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(expenseId) &&
+          isValidExpenseEntry(incoming(), userId, expenseId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(expenseId) &&
+          isValidExpenseEntry(incoming(), userId, expenseId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'date',
+              'month',
+              'itemName',
+              'category',
+              'amount',
+              'memo',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(expenseId) && hasValidParentProfile(userId);
+      }
+
+      // 5. Wastes Subcollection
+      match /wastes/{wasteId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(wasteId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(wasteId) &&
+          isValidWasteEntry(incoming(), userId, wasteId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(wasteId) &&
+          isValidWasteEntry(incoming(), userId, wasteId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'date',
+              'month',
+              'itemName',
+              'category',
+              'wastedAmount',
+              'reason',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(wasteId) && hasValidParentProfile(userId);
+      }
+
+      // 6. Recipe Usages Subcollection
+      match /recipeUsages/{usageId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(usageId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(usageId) &&
+          isValidRecipeUsageEntry(incoming(), userId, usageId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(usageId) &&
+          isValidRecipeUsageEntry(incoming(), userId, usageId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'date',
+              'month',
+              'recipeTitle',
+              'usedIngredients',
+              'savedAmount',
+              'memo',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(usageId) && hasValidParentProfile(userId);
+      }
+
+      // 7. Monthly AI Summaries Subcollection
+      match /monthlySummaries/{monthId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidMonthStr(monthId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidMonthStr(monthId) &&
+          isValidMonthlySummaryDoc(incoming(), userId, monthId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidMonthStr(monthId) &&
+          isValidMonthlySummaryDoc(incoming(), userId, monthId) &&
+          incoming().month == existing().month &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'headline',
+              'summaryParagraph',
+              'actionTips',
+              'generatedAt',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidMonthStr(monthId) && hasValidParentProfile(userId);
+      }
+
+      // 8. Store Recommendations Subcollection
+      match /storeRecommendations/{recId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(recId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(recId) &&
+          isValidStoreRecommendationDoc(incoming(), userId, recId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(recId) &&
+          isValidStoreRecommendationDoc(incoming(), userId, recId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'primaryRecommendedMall',
+              'overallStrategy',
+              'bundleShippingTip',
+              'itemGuides',
+              'sources',
+              'priceDisclaimer',
+              'generatedAt',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(recId) && hasValidParentProfile(userId);
+      }
+
+      // 9. Ingredient Lifecycle Events Subcollection
+      match /lifecycleEvents/{eventId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(eventId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(eventId) &&
+          isValidLifecycleEventDoc(incoming(), userId, eventId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(eventId) &&
+          isValidLifecycleEventDoc(incoming(), userId, eventId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'causeTag',
+              'note',
+              'amountKRW',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(eventId) && hasValidParentProfile(userId);
+      }
+
+      // 10. Monthly Waste Cause AI Analyses Subcollection
+      match /wasteAnalyses/{monthId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidMonthStr(monthId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidMonthStr(monthId) &&
+          isValidWasteCauseAnalysisDoc(incoming(), userId, monthId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidMonthStr(monthId) &&
+          isValidWasteCauseAnalysisDoc(incoming(), userId, monthId) &&
+          incoming().month == existing().month &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'diagnosisHeadline',
+              'primaryCauseSummary',
+              'detectedPatterns',
+              'tailoredSolutions',
+              'recommendedBuyingRule',
+              'analyzedEventCount',
+              'generatedAt',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidMonthStr(monthId) && hasValidParentProfile(userId);
+      }
+
+      // 11. Mission Mini-Game Progress Subcollection
+      match /gameProgress/{docId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(docId) && hasValidParentProfile(userId);
+        allow list: if isOwner(userId) && isValidId(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(docId) &&
+          isValidMissionGameDoc(incoming(), userId, docId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasValidParentProfile(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(docId) &&
+          isValidMissionGameDoc(incoming(), userId, docId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'totalPoints',
+              'completedRounds',
+              'completedMissionsCount',
+              'roundNumber',
+              'roundBonusClaimed',
+              'activeMissions',
+              'recentLogs',
+              'updatedAt'
+            ])
+          ) &&
+          hasValidParentProfile(userId);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(docId) && hasValidParentProfile(userId);
+      }
+    }
+  }
+}
