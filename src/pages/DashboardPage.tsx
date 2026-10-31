@@ -111,7 +111,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <h2 className="mt-3 text-2xl sm:text-[32px] font-bold text-[#122118] leading-[1.28] [text-wrap:balance]">
                 반갑습니다, {profile.nickname}님.
                 <br />
-                <span className="text-[#164E35]">냉장고 속 재료가 최고의 셰프가 되는 순간.</span>
+                <span className="text-[#164E35]">냉장고 속 재료가 최고의 요리가 되는 순간</span>
               </h2>
               <p className="mt-3 text-sm sm:text-[15px] text-[#526559] leading-relaxed max-w-xl">
                 보유 식재료의 신선도와 소비기한을 한눈에 파악하고, 추가 장보기 부담을 줄인 오늘의 맞춤 한 끼를 시작해보세요.

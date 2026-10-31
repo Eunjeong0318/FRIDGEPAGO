@@ -1,6 +1,6 @@
 {
   "name": "냉파고 FRIDGEPAGO",
-  "description": "냉장고 속 재료가 최고의 셰프가 되는 순간. 자취생과 1인 가구를 위한 스마트 식재료 관리, AI 레시피 추천 및 식비 절약 웹서비스",
+  "description": "냉장고 속 재료가 최고의 요리가 되는 순간. 자취생과 1인 가구를 위한 스마트 식재료 관리, AI 레시피 추천 및 식비 절약 웹서비스",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -333,6 +333,12 @@ function FridgePagoContainer() {
 
   // Track Firebase Auth state & bootstrap Firestore workspace (exclusively for verified app owner)
   useEffect(() => {
+    if (!auth) {
+      setCloudAuthReady(true);
+      setCloudSyncStatus('local');
+      return;
+    }
+
     let activeUnsubSnapshot: (() => void) | null = null;
     let cancelled = false;
 

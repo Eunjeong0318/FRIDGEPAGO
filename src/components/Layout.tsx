@@ -193,7 +193,7 @@ export const Layout: React.FC<LayoutProps> = ({
             </div>
           </button>
           <p className="relative mt-3.5 text-xs leading-relaxed text-white/85">
-            냉장고 속 재료가 최고의 셰프가 되는 순간.
+            냉장고 속 재료가 최고의 요리가 되는 순간
           </p>
         </div>
 

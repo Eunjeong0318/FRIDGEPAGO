@@ -4,5 +4,26 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
+
+# Environment variables & secrets (never commit real keys)
+.env
+.env.*
 !.env.example
+
+# Local Firebase Web SDK config files (prevent GitHub Secret Scanning exposure)
+firebase-applet-config.js
+firebase-applet-config.json
+firebase-applet-config.*.js
+firebase-applet-config.*.json
+!firebase-applet-config.example.json
+
+# Firebase CLI / debug artifacts & credential files
+.firebase/
+firebase-debug*.log
+firestore-debug*.log
+*service-account*.json
+credentials*.json
+*.pem
+*.key
+*.p12
+

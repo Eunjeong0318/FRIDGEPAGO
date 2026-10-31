@@ -17,10 +17,29 @@ const GOOGLE_SECURETOKEN_CERTS_URL =
   'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 
 function loadFirebaseProjectId(): string {
+  const envCandidates = [
+    process.env.FIREBASE_PROJECT_ID,
+    process.env.VITE_FIREBASE_PROJECT_ID,
+  ];
+  for (const candidate of envCandidates) {
+    const trimmed = candidate?.trim();
+    if (
+      trimmed &&
+      !trimmed.startsWith('YOUR_') &&
+      !trimmed.startsWith('MY_')
+    ) {
+      return trimmed;
+    }
+  }
   try {
     const raw = fs.readFileSync(path.join(__dirname, 'firebase-applet-config.json'), 'utf8');
     const parsed = JSON.parse(raw) as { projectId?: string };
-    if (parsed.projectId && typeof parsed.projectId === 'string' && parsed.projectId.trim()) {
+    if (
+      parsed.projectId &&
+      typeof parsed.projectId === 'string' &&
+      parsed.projectId.trim() &&
+      !parsed.projectId.trim().startsWith('YOUR_')
+    ) {
       return parsed.projectId.trim();
     }
   } catch {
@@ -304,7 +323,7 @@ function checkOwnerRateLimit(uid: string): boolean {
 }
 
 const SENSITIVE_SERVER_PATH_REGEX =
-  /^\/(?:\.env(?:\..+)?|\.git(?:\/.*)?|server\.(?:ts|js)|firestore\.rules(?:\.test\.ts)?|DRAFT_firestore\.rules|firebase-blueprint\.json|security_spec\.md)$/i;
+  /^\/(?:\.env(?:\..+)?|\.git(?:\/.*)?|server\.(?:ts|js)|firestore\.rules(?:\.test\.ts)?|DRAFT_firestore\.rules|firebase-blueprint\.json|firebase-applet-config\.js|security_spec\.md)$/i;
 
 const VALID_CATEGORIES = [
   '채소',

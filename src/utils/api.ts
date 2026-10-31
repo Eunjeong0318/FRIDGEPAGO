@@ -32,11 +32,13 @@ async function buildAuthorizedHeaders(extraHeaders?: HeadersInit): Promise<Heade
     headers.set('Content-Type', 'application/json');
   }
   try {
-    await auth.authStateReady();
-    if (auth.currentUser) {
-      const idToken = await auth.currentUser.getIdToken();
-      if (idToken) {
-        headers.set('Authorization', `Bearer ${idToken}`);
+    if (auth) {
+      await auth.authStateReady();
+      if (auth.currentUser) {
+        const idToken = await auth.currentUser.getIdToken();
+        if (idToken) {
+          headers.set('Authorization', `Bearer ${idToken}`);
+        }
       }
     }
   } catch {

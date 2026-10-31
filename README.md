@@ -1,6 +1,6 @@
 # 냉파고 (FRIDGEPAGO)
 
-> **냉장고 속 재료가 최고의 셰프가 되는 순간.**
+> **냉장고 속 재료가 최고의 요리가 되는 순간**
 > 자취생과 1인 가구를 위한 스마트 식재료 관리 · AI 맞춤 레시피 추천 · 유통기한 및 식비 절약 관리 웹서비스
 
 ---
@@ -27,33 +27,33 @@
 
 ## 환경변수 설정 및 API 키 보안 안내
 
-본 프로젝트는 **API 키가 브라우저 번들이나 클라이언트 코드에 절대 노출되지 않도록** 모든 Gemini API 요청을 서버(`server.ts`)에서 처리합니다.
+본 프로젝트는 **서버 전용 비밀 키(`GEMINI_API_KEY`)와 클라이언트 Firebase 웹 설정(`VITE_FIREBASE_*`)을 엄격히 분리**하여 관리합니다.
 
-### 1. Google AI Studio 환경에서 실행 시
-- Google AI Studio의 **Settings > Secrets** 패널에서 `GEMINI_API_KEY`가 자동으로 서버 런타임 환경변수(`process.env.GEMINI_API_KEY`)에 주입됩니다.
-- 소스 코드나 `.env.example`에 실제 API 키를 입력하지 마세요.
+### 1. 서버 전용 비밀 키 (`GEMINI_API_KEY`)
+- 모든 Gemini AI 요청(사진 식재료 인식, 맞춤 레시피 추천, 월간 식비 요약, 최저가 구매처 추천, 낭비 원인 진단, 맞춤 미션 생성)은 백엔드 서버(`server.ts`)에서만 실행되며, **검증된 앱 소유자 Google 계정의 Firebase RS256 ID 토큰**이 확인된 요청만 허용됩니다.
+- `GEMINI_API_KEY`에는 절대 `VITE_` 접두사를 붙이지 마세요(`vite.config.ts`에서 `envPrefix: ['VITE_']` 및 `sourcemap: false` 적용).
+- Google AI Studio 환경에서는 **Settings > Secrets** 패널을 통해 서버 런타임 환경변수(`process.env.GEMINI_API_KEY`)로만 주입됩니다.
 
-### 2. 로컬 개발 환경에서 실행 시
-프로젝트 루트에 `.env` 파일을 생성하고 아래와 같이 환경변수를 설정합니다 (`.env` 파일은 `.gitignore`에 의해 Git 추적에서 제외됩니다).
+### 2. Firebase 웹 설정 및 키 제한 안내
+- 로컬/외부 배포 시 `.env`의 `VITE_FIREBASE_*` 환경변수(또는 Git 추적에서 제외된 로컬 `firebase-applet-config.json`)를 사용합니다.
+- `.gitignore`를 통해 `.env*`, `firebase-applet-config.js`, `firebase-applet-config.json`, 서비스 계정 키 파일이 GitHub에 커밋되지 않도록 차단되어 있습니다(예시 템플릿은 `.env.example`, `firebase-applet-config.example.json` 참고).
+- Firebase 웹 `apiKey`는 Google Cloud 콘솔(`APIs & Services > Credentials`)에서 **애플리케이션 제한(HTTP 리퍼러)** 및 **API 제한(Identity Toolkit API, Token Service API, Cloud Firestore API, Firebase Installations API만 허용)**을 반드시 적용하세요.
 
-```bash
-GEMINI_API_KEY="발급받은_본인의_GEMINI_API_KEY"
-APP_URL="http://localhost:3000"
-```
-
-### 3. 패키지 설치 및 실행 명령어
+### 3. 로컬 개발 환경 실행 방법
 
 ```bash
-# 의존성 설치
+# 1) 환경변수 템플릿 복사 후 값 입력 (.env는 Git 추적 제외됨)
+cp .env.example .env
+
+# 2) 의존성 설치 및 개발 서버 실행 (포트 3000)
 npm install
-
-# 개발 서버 실행 (포트 3000, Express + Vite 미들웨어)
 npm run dev
 
-# 프로덕션 빌드 및 실행
+# 3) 프로덕션 빌드 및 실행
 npm run build
 NODE_ENV=production npm start
 ```
 
-### 4. API 키 미연결 시 동작
-- 서버 환경변수에 `GEMINI_API_KEY`가 설정되지 않은 경우에도 **식재료 직접 등록/수정/삭제, 유통기한 관리, 장보기 리스트, 절약 리포트 계산 등 모든 핵심 기능은 정상 작동**하며, AI 기능 영역에는 연결 안내 배너가 표시됩니다.
+### 4. 미인증 / 오프라인 동작 안내
+- 로그인하지 않거나 외부 키가 설정되지 않은 환경에서도 **식재료 등록/수정/삭제, 유통기한 관리, 미니게임 미션, 장보기 리스트, 절약 리포트 계산 등 핵심 기능은 브라우저 LocalStorage 기반으로 정상 작동**합니다.
+
